@@ -1,0 +1,73 @@
+---
+
+ - hosts: mongo3
+
+   become: yes
+
+   tasks:
+
+   - name: Add repository
+     yum_repository:
+      name: MongoDB-Repository
+      description: EPEL YUM repo
+      baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/
+      gpgcheck: yes
+      gpgkey: https://www.mongodb.org/static/pgp/server-4.0.asc
+      enabled: yes
+#   - name: installing python3
+#     yum:
+#      name: python3
+#      state: present
+#   - name: epel release
+#     command: rpm -ivh https://centos7.iuscommunity.org/ius-release.rpm
+   - name: installing python3
+     yum:
+      name: python36u
+      state: present
+   - name: installing pip
+     yum:
+      name: python36u-pip
+      state: present
+   - name: installing pymongo
+     command: pip3.6 install pymongo
+
+   - name: Install a list of packages
+     yum:
+       name: https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm
+       state: present
+     tags:
+     - one
+   - name: Rum mangodb service
+     systemd:
+       name:  mongod
+       state: started
+       enabled: yes
+     tags:
+     - two
+   - name: Copy file with owner and permissions
+     copy:
+       src: mongod.conf
+       dest: /etc/mongod.conf
+       owner: root
+       group: root
+       mode: '0644'
+     tags:
+     - three
+   - name: restart mongodb
+     service:
+       name: mongod
+       state: restarted
+     tags:
+     - four
+   - name: creating root database
+     mongodb_user:
+       login_user: root
+       login_password: "Cloud@12345"
+       login_database: admin
+       database: db2
+       name: user2
+       roles: "userAdminAnyDatabase"
+       password: "Cloud@12345"
+       state: present
+     tags:
+     - five

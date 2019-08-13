@@ -1,0 +1,109 @@
+---
+- name: installing mongo-cluster
+  hosts: mongo2
+  become: yes
+  tasks:
+  - name: Disable SELinux
+    selinux:
+      state: disabled
+  - name: creating momngodb-repository
+    yum_repository:
+      name: mongo-repo
+      description: mongo repository
+      baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/
+      gpgcheck: yes
+      gpgkey: https://www.mongodb.org/static/pgp/server-4.0.asc
+      enabled: yes
+  - name: updating cache
+    yum: 
+      update_cache: yes
+  - name: installing mongo server
+    yum: 
+      name: mongodb-org
+      state: latest 
+  - name: copying the pem file
+    copy:
+      src: master.pem
+      dest: /home/centos/.ssh/master.pem
+      owner: centos
+      group: centos
+      mode: 0400
+  - name: added ssh-agent
+    shell:  echo "Identityfile ~/.ssh/master.pem" | sudo tee -a /etc/ssh/ssh_config
+  - name: copying hosts file
+    copy:
+      src: hosts2
+      dest: /etc/hosts
+      owner: root
+      group: root
+      mode: 0644
+- name: copying mongod.conf
+  hosts: config
+  become: yes
+  tasks:
+  - copy:
+      src: mongod.conf
+      dest: /etc/mongod.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: copying init.js
+    copy:  
+      src: init.js
+      dest: /home/centos/init.js
+- name: copying files in shard1 server
+  hosts: shard1
+  become: yes
+  tasks:
+  - copy:
+      src: mongod1.conf
+      dest: /etc/mongod.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: copying init.js
+    copy:
+      src: init1.js
+      dest: /home/centos/init.js
+- name: copying files in shard2 server
+  hosts: shard2
+  become: yes
+  tasks:
+  - copy:
+      src: mongod2.conf
+      dest: /etc/mongod.conf
+      owner: root
+      group: root
+      mode: 0644
+  - name: copying init.js
+    copy:
+      src: init2.js
+      dest: /home/centos/init.js
+
+- name: starting mongod service
+  hosts: mongo2
+  become: yes
+  tasks:
+  - service:
+      name: mongod
+      state: started
+#  - import_playbook: play2.yml
+- name: creating replicaset
+  hosts: config
+  become: yes
+  tasks: 
+  - name: creating replication
+    shell: mongo --host config /home/centos/init.js 
+- name: creating replicaset
+  hosts: shard1
+  become: yes
+  tasks: 
+  - name: creating replication
+    shell: mongo --host shard1 /home/centos/init.js 
+- name: creating replicaset
+  hosts: shard2
+  become: yes
+  tasks: 
+  - name: creating replication
+    shell: mongo --host shard2 /home/centos/init.js 
+...
